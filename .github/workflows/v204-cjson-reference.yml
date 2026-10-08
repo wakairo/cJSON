@@ -1,0 +1,38 @@
+name: V204 Frozen cJSON C Reference (non-normative)
+on:
+  push:
+    branches:
+      - 'v204-*'
+permissions:
+  contents: read
+jobs:
+  frozen-reference:
+    name: Execute pinned C reference / read-only allocator observation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout isolated V evidence branch and complete frozen history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run original frozen C against independent harness
+        shell: bash
+        run: bash docs/evidence/cjson_reference_c_baseline/run_ci.sh
+      - name: Show collected run exit metadata on failure
+        if: always()
+        shell: bash
+        run: |
+          echo "Branch SHA: $GITHUB_SHA"
+          test -f v204-results/provenance.txt && cat v204-results/provenance.txt || true
+          test -f v204-results/console.log && tail -100 v204-results/console.log || true
+          find v204-results -maxdepth 1 -name '*.err' -type f -exec sh -c 'echo "$1"; tail -25 "$1"' _ {} \; 2>/dev/null || true
+      - name: Preserve raw native address and malloc/free event traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v204-pinned-cjson-reference-raw
+          path: v204-results/
+          include-hidden-files: false
+          if-no-files-found: warn
+          retention-days: 30
